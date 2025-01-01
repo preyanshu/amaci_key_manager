@@ -71,7 +71,7 @@ const App: React.FC = () => {
       // setMessage("Key pair generated and saved successfully.");
       retrieveKeys();
 
-      alert("Key pair generated and saved successfully!");
+      // alert("Key pair generated and saved successfully!");
     } catch (error) {
       alert("Error generating key pair.");
     } finally {
@@ -138,17 +138,24 @@ const App: React.FC = () => {
   };
 
   // Delete key from IndexedDB
-  const deleteKeyFromDB = async (publicKey: string): Promise<void> => {
-    setLoading(true);
-
-    const db = await initDB();
-    await db.delete("keys", publicKey);
-    alert("Key deleted successfully.");
-    // setMessage("Key deleted successfully.");
-    retrieveKeys();
-
-    setLoading(false);
-  };
+  const deleteKeyFromDB = async (publicKey: string) => {
+    const isConfirmed = window.confirm("Are you sure you want to delete this key?");
+    
+    if (isConfirmed) {
+      setLoading(true); // Set loading to true when deleting
+  
+      const db = await initDB();
+      await db.delete("keys", publicKey);
+      alert("Key deleted successfully.");
+      // setMessage("Key deleted successfully.");
+      retrieveKeys(); // Refresh the list
+  
+      setLoading(false); // Reset loading state
+    } else {
+      // Action canceled, no changes made
+      alert("Key deletion canceled.");
+    }
+  }
 
   // Sign a message using a private key
   const signMessage = (publicKey: string, encryptedPrivateKey: string): void => {
