@@ -1,17 +1,22 @@
 import React, { useState, useEffect } from "react";
-import { openDB } from "idb";
+import { openDB, IDBPDatabase } from "idb";
 import CryptoJS from "crypto-js";
 import EC from "elliptic";
 
-const App = () => {
-  const [keysList, setKeysList] = useState([]);
-  const [message, setMessage] = useState("");
-  const [loading, setLoading] = useState(false); // Loading state for async actions
-  const [actionMessage, setActionMessage] = useState(""); // Action message state
+type Key = {
+  name: string;
+  publicKey: string;
+  encryptedPrivateKey: string;
+  status: "active" | "inactive";
+};
+
+const App: React.FC = () => {
+  const [keysList, setKeysList] = useState<Key[]>([]);
+  const [loading, setLoading] = useState<boolean>(false);
   const ec = new EC.ec("secp256k1");
 
   // Initialize IndexedDB
-  const initDB = async () => {
+  const initDB = async (): Promise<IDBPDatabase> => {
     return openDB("KeyManagerDB", 1, {
       upgrade(db) {
         if (!db.objectStoreNames.contains("keys")) {
@@ -22,7 +27,7 @@ const App = () => {
   };
 
   // Retrieve all keys from IndexedDB
-  const retrieveKeys = async () => {
+  const retrieveKeys = async (): Promise<void> => {
     setLoading(true);
     const db = await initDB();
     const keys = await db.getAll("keys");
@@ -31,7 +36,7 @@ const App = () => {
   };
 
   // Generate a new key pair
-  const generateKeyPair = async () => {
+  const generateKeyPair = async (): Promise<void> => {
     const keyName = prompt("Enter a name for the key pair:");
     if (!keyName) {
       alert("Key name is required!");
@@ -44,7 +49,7 @@ const App = () => {
       return;
     }
 
-    setLoading(true); // Set loading to true when generating keys
+    setLoading(true);
 
     try {
       const keyPair = ec.genKeyPair();
@@ -61,36 +66,38 @@ const App = () => {
       const db = await initDB();
       await db.put("keys", { name: keyName, publicKey, encryptedPrivateKey, status: "inactive" });
 
-      setMessage("Key pair generated and saved successfully.");
-      retrieveKeys(); // Refresh the list
+      alert("Key pair generated and saved successfully!");
+
+      // setMessage("Key pair generated and saved successfully.");
+      retrieveKeys();
 
       alert("Key pair generated and saved successfully!");
     } catch (error) {
       alert("Error generating key pair.");
     } finally {
-      setLoading(false); // Reset loading state
+      setLoading(false);
     }
   };
 
   // Decrypt Private Key using AES
-  const decryptPrivateKey = (encryptedKey, password) => {
+  const decryptPrivateKey = (encryptedKey: string, password: string): string | null => {
     try {
       const [ivHex, ciphertextHex] = encryptedKey.split(":");
       const iv = CryptoJS.enc.Hex.parse(ivHex);
-      const ciphertext = CryptoJS.enc.Hex.parse(ciphertextHex);
+      const ciphertext  = CryptoJS.enc.Hex.parse(ciphertextHex);
 
       const key = CryptoJS.PBKDF2(password, password, { keySize: 256 / 32 });
 
-      const decrypted = CryptoJS.AES.decrypt({ ciphertext }, key, { iv });
+      const decrypted  = CryptoJS.AES.decrypt({ ciphertext  } as any, key, { iv });
 
       return decrypted.toString(CryptoJS.enc.Utf8);
     } catch (error) {
-      return null; // Handle decryption failure
+      return null;
     }
   };
 
   // Get Private Key for a specific Public Key
-  const getPrivateKey = (publicKey, encryptedPrivateKey) => {
+  const getPrivateKey = (publicKey: string, encryptedPrivateKey: string): void => {
     const password = prompt(`Enter the password to retrieve the private key for ${publicKey}:`);
     if (!password) {
       alert("Password is required!");
@@ -100,16 +107,16 @@ const App = () => {
     const privateKey = decryptPrivateKey(encryptedPrivateKey, password);
     if (privateKey) {
       alert(`Private Key: ${privateKey}`);
-      setMessage(`Private Key for ${publicKey}: ${privateKey}`);
+      // setMessage(`Private Key for ${publicKey}: ${privateKey}`);
     } else {
       alert("Invalid password! Unable to retrieve the private key.");
-      setMessage("Invalid password! Unable to retrieve the private key.");
+      // setMessage("Invalid password! Unable to retrieve the private key.");
     }
   };
 
   // Toggle status between "active" and "inactive"
-  const toggleStatus = async (publicKey, currentStatus) => {
-    setLoading(true); // Set loading to true when toggling status
+  const toggleStatus = async (publicKey: string, currentStatus: "active" | "inactive"): Promise<void> => {
+    setLoading(true);
 
     const newStatus = currentStatus === "inactive" ? "active" : "inactive";
 
@@ -118,32 +125,33 @@ const App = () => {
 
     if (key) {
       key.status = newStatus;
-      await db.put("keys", key); // Update the key's status
-      setActionMessage(`Key status updated to ${newStatus}.`);
-      retrieveKeys(); // Refresh the list
+      await db.put("keys", key);
+
+      // setActionMessage(`Key status updated to ${newStatus}.`);
+      retrieveKeys();
       alert(`Key status updated to ${newStatus}.`);
     } else {
       alert("Key not found.");
     }
 
-    setLoading(false); // Reset loading state after operation
+    setLoading(false);
   };
 
   // Delete key from IndexedDB
-  const deleteKeyFromDB = async (publicKey) => {
-    setLoading(true); // Set loading to true when deleting
+  const deleteKeyFromDB = async (publicKey: string): Promise<void> => {
+    setLoading(true);
 
     const db = await initDB();
     await db.delete("keys", publicKey);
     alert("Key deleted successfully.");
-    setMessage("Key deleted successfully.");
-    retrieveKeys(); // Refresh the list
+    // setMessage("Key deleted successfully.");
+    retrieveKeys();
 
-    setLoading(false); // Reset loading state
+    setLoading(false);
   };
 
   // Sign a message using a private key
-  const signMessage = (publicKey, encryptedPrivateKey) => {
+  const signMessage = (publicKey: string, encryptedPrivateKey: string): void => {
     const password = prompt(`Enter the password to sign a message for ${publicKey}:`);
     if (!password) {
       alert("Password is required!");
@@ -158,16 +166,16 @@ const App = () => {
         const signature = key.sign(msg);
         const signatureHex = signature.toDER("hex");
         alert(`Message signed! Signature: ${signatureHex}`);
-        setMessage(`Message signed! Signature: ${signatureHex}`);
+        // setMessage(`Message signed! Signature: ${signatureHex}`);
       }
     } else {
       alert("Invalid password! Unable to retrieve the private key.");
-      setMessage("Invalid password! Unable to retrieve the private key.");
+      // setMessage("Invalid password! Unable to retrieve the private key.");
     }
   };
 
   useEffect(() => {
-    retrieveKeys(); // Load keys on component mount
+    retrieveKeys();
   }, []);
 
   return (
@@ -222,39 +230,30 @@ const App = () => {
                   {status.charAt(0).toUpperCase() + status.slice(1)}
                 </span>
               </p>
-              <div style={{ display: "flex", gap: "10px" ,flexWrap:"wrap"}}>
+              <div style={{ display: "flex", gap: "10px" ,flexWrap:"wrap",justifyContent:"flex-end"}}>
                 <button
                   onClick={() => toggleStatus(publicKey, status)}
                   style={{
                     padding: "5px 10px", backgroundColor: "white", color: "black", border: "none", borderRadius: "5px",
-                    cursor: "pointer", flex: 1
+                    cursor: "pointer",marginTop:"10px"
                   }}
                 >
-                  {status === "active" ? "Deactivate" : "Activate"}
+                  Toggle Status
                 </button>
                 <button
                   onClick={() => getPrivateKey(publicKey, encryptedPrivateKey)}
                   style={{
-                    padding: "5px 10px",  backgroundColor: "white", color: "black", border: "none", borderRadius: "5px",
-                    cursor: "pointer", flex: 1
+                    padding: "5px 10px", backgroundColor: "white", color: "black", border: "none", borderRadius: "5px",
+                    cursor: "pointer",marginTop:"10px"
                   }}
                 >
-                  Get Private Key
+                  Retrieve Private Key
                 </button>
                 <button
-                  onClick={() => 
-                    
-                    {
-                      if(status === "inactive"){
-                        alert("Please activate the key first to sign the message.")
-                      }
-                      else{
-                        signMessage(publicKey, encryptedPrivateKey)
-                      } 
-                      }}
+                  onClick={() => signMessage(publicKey, encryptedPrivateKey)}
                   style={{
-                    padding: "5px 10px",  backgroundColor: "white", color: "black", border: "none", borderRadius: "5px",
-                    cursor: status === "inactive" ? "not-allowed" : "pointer", flex: 1
+                    padding: "5px 10px", backgroundColor: "white", color: "black", border: "none", borderRadius: "5px",
+                    cursor: "pointer",marginTop:"10px"
                   }}
                 >
                   Sign Message
@@ -263,7 +262,7 @@ const App = () => {
                   onClick={() => deleteKeyFromDB(publicKey)}
                   style={{
                     padding: "5px 10px", backgroundColor: "white", color: "black", border: "none", borderRadius: "5px",
-                    cursor: "pointer", flex: 1
+                    cursor: "pointer", marginTop:"10px"
                   }}
                 >
                   Delete Key
@@ -273,9 +272,8 @@ const App = () => {
           ))}
         </ul>
       ) : (
-        <p>No keys available.</p>
+        <p style={{ color: "#fff" }}>No keys available.</p>
       )}
-
     </div>
   );
 };
